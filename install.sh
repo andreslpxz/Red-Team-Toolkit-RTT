@@ -22,7 +22,7 @@ if [ ! -f .env ]; then
     echo "[!] .env file not found. Creating a template..."
     cat <<EOF > .env
 GROQ_API_KEY=your_api_key_here
-GROQ_MODEL=llama3-70b-8192
+GROQ_MODEL=llama-3.3-70b-versatile
 EOF
     echo "[+] .env template created. Please add your Groq API key."
 fi
