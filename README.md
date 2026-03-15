@@ -152,7 +152,7 @@ nano .env
 
 # Add the following:
 GROQ_API_KEY=your_groq_api_key_here
-MODEL_NAME=mixtral-8x7b-32768
+MODEL_NAME=llama-3.3-70b-versatile
 ```
 
 **Get your Groq API Key:**
@@ -173,8 +173,8 @@ Create a `.env` file in the project root:
 # Required: Groq API Key (get free at console.groq.com)
 GROQ_API_KEY=gsk_xxxxxxxxxxxxxxxxxxxxx
 
-# Optional: LLM Model (default: mixtral-8x7b-32768)
-MODEL_NAME=mixtral-8x7b-32768
+# Optional: LLM Model (default: llama-3.3-70b-versatile)
+MODEL_NAME=mllama-3.3-70b-versatile
 
 # Optional: Max iterations for autonomous agent
 MAX_ITERATIONS=5
