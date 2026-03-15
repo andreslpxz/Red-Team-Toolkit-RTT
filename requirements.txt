@@ -1,0 +1,6 @@
+groq
+python-dotenv
+prompt_toolkit
+aiohttp
+requests
+colorama
