@@ -4,3 +4,7 @@ prompt_toolkit
 aiohttp
 requests
 colorama
+chromadb>=0.5.0
+sqlalchemy>=2.0
+pydantic>=2.0
+beautifulsoup4
