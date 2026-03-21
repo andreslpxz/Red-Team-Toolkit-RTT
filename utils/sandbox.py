@@ -2,6 +2,7 @@ import os
 import subprocess
 import asyncio
 import shlex
+import shutil
 from typing import Dict, Any, List, Optional
 from utils.logger import Logger
 import datetime
@@ -13,11 +14,12 @@ class SafeExecutor:
     """
     def __init__(self, base_path: str = "space"):
         self.base_path = os.path.abspath(base_path)
+        # Find executable paths dynamically for better platform compatibility (e.g., Termux)
         self.allowed_commands = {
-            "python": "/usr/bin/python3",
-            "python3": "/usr/bin/python3",
-            "bash": "/bin/bash",
-            "sh": "/bin/sh",
+            "python": shutil.which("python3") or shutil.which("python") or "/usr/bin/python3",
+            "python3": shutil.which("python3") or "/usr/bin/python3",
+            "bash": shutil.which("bash") or "/bin/bash",
+            "sh": shutil.which("sh") or "/bin/sh",
         }
         self.max_timeout = 30  # seconds
         self.audit_log_path = os.path.join(self.base_path, "audit.log")

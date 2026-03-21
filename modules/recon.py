@@ -8,15 +8,17 @@ class ReconModule:
         self.name = "recon"
         self._last_result = None
 
-    def scan(self, target, callback=None):
+    def scan(self, target, options="-F -sV", callback=None):
         """
-        Runs an Nmap scan. If a callback is provided, it runs in a background thread.
+        Runs an Nmap scan with custom options. If a callback is provided, it runs in a background thread.
         """
         def _run():
-            Logger.info(f"Running Nmap scan on {target}...")
+            Logger.info(f"Running Nmap scan on {target} with options: {options}...")
             try:
+                # Build command list
+                cmd = ["nmap"] + options.split() + [target]
                 result = subprocess.run(
-                    ["nmap", "-F", "-sV", target],
+                    cmd,
                     capture_output=True,
                     text=True,
                     timeout=300
