@@ -1,7 +1,39 @@
+import json
 import sys
 import os
 import threading
 import asyncio
+from types import ModuleType
+
+# --- [ SHIELD: TERMUX COMPATIBILITY PATCH ] ---
+# Engañamos a ChromaDB para saltar dependencias pesadas y errores de compilación en ARM64.
+fake_modules = [
+    "onnxruntime", 
+    "tokenizers",
+    "opentelemetry.exporter.otlp.proto.grpc.trace_exporter",
+    "opentelemetry.exporter.otlp.proto.grpc.metrics_exporter",
+    "opentelemetry.exporter.otlp"
+]
+
+for module_name in fake_modules:
+    if module_name not in sys.modules:
+        m = ModuleType(module_name)
+        if "trace_exporter" in module_name: m.OTLPSpanExporter = type("OTLPSpanExporter", (), {})
+        if "metrics_exporter" in module_name: m.OTLPMetricExporter = type("OTLPMetricExporter", (), {})
+        if module_name == "tokenizers": m.Tokenizer = type("Tokenizer", (), {})
+        sys.modules[module_name] = m
+
+# --- HNSWLIB ATTR PATCH ---
+try:
+    import hnswlib
+    if not hasattr(hnswlib.Index, 'file_handle_count'):
+        hnswlib.Index.file_handle_count = 0
+except Exception:
+    h = ModuleType("hnswlib")
+    h.Index = type("Index", (), {"file_handle_count": 0})
+    sys.modules["hnswlib"] = h
+# ----------------------------------------------
+
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import WordCompleter
 from utils.logger import Logger
@@ -13,7 +45,7 @@ from modules.stealth import stealth_module
 from core.agent import agent
 from core.memory import memory
 
-# NEW IMPORTS
+# Aura v2.0 Advanced Core
 from core.advanced_agent import advanced_agent
 from core.semantic_memory import semantic_memory
 from core.mcp_router import mcp_router
@@ -34,18 +66,14 @@ def print_banner():
     print(banner)
 
 def handle_background_scan(output, target):
-    Logger.success(f"Background scan for {target} finished.")
+    Logger.success(f"Escaneo para {target} finalizado.")
     memory.store(target, "nmap_scan", output)
-    # Automatically trigger AI analysis
     analysis = recon_module.analyze(output)
-    Logger.success(f"AI Analysis for {target}:")
+    Logger.success(f"Análisis IA para {target}:")
     print(analysis)
     memory.store(target, "ai_analysis", analysis)
 
 def run_async(coro):
-    """
-    Helper function to run async coroutines from the synchronous CLI loop.
-    """
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
@@ -57,7 +85,7 @@ def main():
     print_banner()
 
     if not config.is_valid():
-        Logger.warning("GROQ_API_KEY not set. Please update .env")
+        Logger.warning("GROQ_API_KEY no detectada en .env")
 
     commands = [
         'scan', 'agent', 'agent-semantic', 'exploit', 'stealth', 'memory',
@@ -69,103 +97,89 @@ def main():
     while True:
         try:
             text = session.prompt("aura > ")
-            if not text:
-                continue
+            if not text: continue
 
             parts = text.split()
             cmd = parts[0].lower()
             args = parts[1:]
 
-            if cmd == 'exit':
-                break
-            elif cmd == 'clear':
-                os.system('clear')
-            elif cmd == 'panic':
-                trigger_panic()
+            if cmd == 'exit': break
+            elif cmd == 'clear': os.system('clear')
+            elif cmd == 'panic': trigger_panic()
             elif cmd == 'help':
                 print("""
-                Aura Framework Commands:
-                  agent <objective>           : Start autonomous AI mission (Standard)
-                  agent-semantic <objective>  : Advanced mission with Semantic Memory & MCP
-                  scan <target>              : Run background Nmap & AI analysis
-                  exploit <info>             : AI-assisted exploit search/payload
-                  mcp query <query>          : Query context from NVD, GitHub, MITRE
-                  memory <target>            : Show stored findings for target (SQL)
-                  memory-search <pattern>    : Semantic search in past vulnerabilities
-                  report <target>            : Generate HTML/JSON report from findings
-                  payload <type> <ip> <port> : Generate obfuscated payload
-                  stealth                    : Operational security tools
-                  panic                      : Wipes keys and logs immediately
-                  clear/exit                 : System commands
+                Comandos de Aura Framework:
+                  agent <meta>                : Misión IA estándar
+                  agent-semantic <meta>       : Misión avanzada (Memoria + MCP)
+                  scan <target>               : Nmap + Análisis IA
+                  exploit <info>              : Búsqueda de exploits
+                  mcp query <query>           : Consultar NVD/GitHub/MITRE
+                  memory <target>             : Ver hallazgos SQL
+                  memory-search <pattern>     : Búsqueda semántica (ChromaDB)
+                  report <target>             : Generar reporte técnico
+                  payload <type> <ip> <port>  : Crear payload ofuscado
+                  stealth                     : Limpieza de logs y OPSEC
+                  panic                       : Borrado de emergencia
                 """)
+
             elif cmd == 'scan':
-                if not args:
-                    Logger.error("Usage: scan <target>")
-                    continue
+                if not args: continue
                 target = args[0]
                 recon_module.scan(target, callback=lambda out: handle_background_scan(out, target))
+
             elif cmd == 'agent':
-                if not args:
-                    Logger.error("Usage: agent <objective>")
-                    continue
+                if not args: continue
                 threading.Thread(target=agent.run, args=(" ".join(args),)).start()
+
             elif cmd == 'agent-semantic':
-                if not args:
-                    Logger.error("Usage: agent-semantic <objective>")
-                    continue
-                # For simplicity, running advanced agent in current thread but it's async
+                if not args: continue
                 run_async(advanced_agent.execute_mission(" ".join(args)))
+
             elif cmd == 'memory':
-                if not args:
-                    Logger.error("Usage: memory <target>")
-                    continue
+                if not args: continue
                 results = memory.query(args[0])
                 for r_type, data, ts in results:
-                    print(f"[{ts}] {r_type}: {data[:100]}...")
+                    print(f"[{ts}] {r_type}: {data[:80]}...")
+
             elif cmd == 'memory-search':
-                if not args:
-                    Logger.error("Usage: memory-search <pattern>")
-                    continue
+                if not args: continue
                 results = run_async(semantic_memory.search(" ".join(args)))
                 for res in results:
-                    print(f"[{res['timestamp']}] {res['vulnerability']} at {res['target']}")
+                    print(f"[{res['timestamp']}] {res['vulnerability']} en {res['target']}")
+
             elif cmd == 'mcp':
-                if len(args) < 2 or args[0] != 'query':
-                    Logger.error("Usage: mcp query <query>")
-                    continue
+                if len(args) < 2: continue
                 results = run_async(mcp_router.query(" ".join(args[1:])))
                 print(json.dumps(results, indent=2))
+
             elif cmd == 'report':
-                if not args:
-                    Logger.error("Usage: report <target>")
-                    continue
-                target = args[0]
-                sql_findings = memory.query(target)
-                findings = [{"title": f_type, "description": data, "severity": "medium"} for f_type, data, ts in sql_findings]
-                path = run_async(file_executor.generate_report(findings, target=target))
-                print(f"Report available at: {path}")
+                if not args: continue
+                sql_findings = memory.query(args[0])
+                findings = [{"title": t, "description": d, "severity": "med"} for t, d, ts in sql_findings]
+                path = run_async(file_executor.generate_report(findings, target=args[0]))
+                print(f"Reporte en: {path}")
+
             elif cmd == 'payload':
-                if len(args) < 3:
-                    Logger.error("Usage: payload <type> <ip> <port>")
-                    continue
+                if len(args) < 3: continue
                 p_info = {"target_ip": args[1], "target_port": args[2]}
                 path = run_async(file_executor.create_payload(p_info, payload_type=args[0]))
-                print(f"Payload available at: {path}")
+                print(f"Payload en: {path}")
+
             elif cmd == 'exploit':
-                if not args:
-                    Logger.error("Usage: exploit <service_info>")
-                    continue
+                if not args: continue
                 print(exploit_module.search(" ".join(args)))
+
             elif cmd == 'stealth':
                 stealth_module.clean_logs()
                 Logger.info(f"Sandbox check: {stealth_module.check_sandbox()}")
-            else:
-                Logger.error(f"Unknown command: {cmd}")
 
-        except KeyboardInterrupt:
-            continue
-        except EOFError:
-            break
+            else:
+                Logger.error(f"Comando no reconocido: {cmd}")
+
+        except KeyboardInterrupt: continue
+        except EOFError: break
+        except Exception as e:
+            Logger.error(f"Error en ejecución: {e}")
 
 if __name__ == "__main__":
     main()

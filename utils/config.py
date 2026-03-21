@@ -5,7 +5,7 @@ class Config:
     def __init__(self):
         load_dotenv()
         self.groq_api_key = os.getenv("GROQ_API_KEY")
-        self.model_name = os.getenv("GROQ_MODEL", "llama3-70b-8192")
+        self.model_name = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
         self.log_path = "logs/aura.log"
         self.db_path = "data/db/aura.db"
 
